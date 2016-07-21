@@ -1,10 +1,15 @@
-/// <reference path="typings/tsd.d.ts" />
 "use strict";
 var fs = require('fs');
 var Q = require('q');
 var parse = require('csv-parse');
-var scraper = require('google-search-scraper');
+var request = require('request-promise');
 var csv = require('fast-csv');
+
+var Bing = require('node-bing-api')({
+    accKey: "w+HJt+PgH3SR67++AW3Ex5Hu/dFwjfPAPcFWmu5YWeI",
+    reqTimeout: 20000
+});
+
 
 //Main Exec
 
@@ -13,11 +18,7 @@ getParsePromise().then(function(output){
     var promises = [];
 
     output.forEach(function(row, index){
-        setTimeout(function(){
-            promises.push(search(row[0], row[1], row[2]));
-            console.log("Loading " + index);
-        }, Math.random() * 2000 * index);
-       
+        promises.push(search(row[0], row[1], row[2], index));
     });
 
     return Q.allSettled(promises).then(function(urls){
@@ -25,7 +26,7 @@ getParsePromise().then(function(output){
              if(url.state === "fulfilled") {
                  output[index].push(url.value);
              }else{
-                 output[index].push("GError");
+                 output[index].push("Search Error");
              }
          });
          return output;
@@ -34,13 +35,10 @@ getParsePromise().then(function(output){
 }).then(function(output){
         var outputFile = fs.createWriteStream("output.csv");
         csv.write(output, {}).pipe(outputFile);
-    
+
 }).catch(function(err){
     console.log(err);
 }).done();
-
-
-
 
 
 //Make Parser Promise
@@ -68,32 +66,38 @@ function getParsePromise(readStream){
 
 
 
-//Google Scraping Algorithm
+//Bing Scraping Algorithm
 
-function search(first, last, company) {
+function search(first, last, company, index) {
     var promise = Q.defer();
-    scraper.search(makeSearchOptions(first, last, company), function (err, url) {
-        if (err) {
-            console.log(err);
-            promise.reject(new Error(err));
-        }
-        else{
-            console.log(url);
-            promise.resolve(url);
-        }
-    });
+
+    if(company) {
+        company = company.split(':')[0];
+    }
+
+    setTimeout(function() {
+        console.log("Loading " + index);
+        Bing.web(first + " " + last + " " + company + " site:LinkedIn.com", function (error, res, body) {
+                if (error) {
+                    console.log(error);
+                    promise.reject(new Error(error));
+                } else {
+                    if(body.d.results[0]){
+                        console.log(body.d.results[0].Url);
+                        promise.resolve(body.d.results[0].Url);
+                    }else{
+                        console.log("NOT FOUND");
+                        promise.reject(new Error("NOT FOUND"));
+                    }
+
+                }
+            },
+            {
+                top: 1,
+                options: ['DisableLocationDetection']
+            });
+    }, index * 250);
+
     return promise.promise;
-}
 
-
-function makeSearchOptions(first, last, company) {
-    first = first.replace(' ', "+");
-    last = last.replace(' ', "+");
-    company = company.replace(' ', "+").split(':')[0];
-    return {
-        query: 'linkedin',
-        host: 'www.google.com.sg',
-        lang: 'en',
-        limit: 1
-    };
 }

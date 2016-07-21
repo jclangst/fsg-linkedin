@@ -13,6 +13,10 @@
     "csv": "^1.1.0",
     "fast-csv": "^2.0.1",
     "google-search-scraper": "0.0.2",
-    "q": "^1.4.1"
+    "linkedin-scraper2": "^2.0.0",
+    "node-bing-api": "^2.4.1",
+    "q": "^1.4.1",
+    "request-promise": "^4.0.2",
+    "valid-url": "^1.0.9"
   }
 }
